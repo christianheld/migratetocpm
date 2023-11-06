@@ -1,5 +1,9 @@
-﻿using System.Xml;
+using System.Globalization;
+using System.Xml;
 using System.Xml.Linq;
+
+using NuGet.Versioning;
+
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -36,12 +40,12 @@ public class MigrateToCpmCommand : AsyncCommand<MigrateToCpmSettings>
                 foreach (var projectFile in projectFiles)
                 {
                     task.Description = projectFile.Name;
-                    await UpdateCsProjFileAsync(packageVersions, projectFile);
+                    await UpdateCsProjFileAsync(packageVersions, projectFile).ConfigureAwait(false);
                     task.Increment(1);
                 }
 
                 return packageVersions;
-            });
+            }).ConfigureAwait(false);
 
         var table = new Table();
         table.AddColumn("Package");
@@ -54,12 +58,14 @@ public class MigrateToCpmCommand : AsyncCommand<MigrateToCpmSettings>
 
         AnsiConsole.Write(table);
 
-        await CreateDirectoryPackagesFileAsync(directoryInfo, packages);
+        await CreateDirectoryPackagesFileAsync(directoryInfo, packages).ConfigureAwait(false);
 
         return 0;
     }
 
-    private static async Task CreateDirectoryPackagesFileAsync(DirectoryInfo directoryInfo, Dictionary<string, string> packages)
+    private static async Task CreateDirectoryPackagesFileAsync(
+        DirectoryInfo directoryInfo,
+        Dictionary<string, string> packages)
     {
         var packagesProps = new XDocument();
         packagesProps.Add(
@@ -82,28 +88,29 @@ public class MigrateToCpmCommand : AsyncCommand<MigrateToCpmSettings>
         using (var fs = File.Create(fileName))
         {
             using var writer = XmlWriter.Create(fs, _xmlWriterSettings);
-            await packagesProps.SaveAsync(writer, CancellationToken.None);
+            await packagesProps.SaveAsync(writer, CancellationToken.None).ConfigureAwait(false);
         }
     }
 
     private static List<FileInfo> GetCsProjFiles(DirectoryInfo directoryInfo)
     {
-        return directoryInfo.EnumerateFiles(
-                            "*.csproj",
-                            new EnumerationOptions
-                            {
-                                RecurseSubdirectories = true,
-                                IgnoreInaccessible = true,
-                            })
-                            .ToList();
+        var options = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+        };
+
+        return directoryInfo.EnumerateFiles("*.csproj", options).ToList();
     }
 
-    private static async Task UpdateCsProjFileAsync(Dictionary<string, string> packageVersions, FileInfo projectFile)
+    private static async Task UpdateCsProjFileAsync(
+        Dictionary<string, string> packageVersions,
+        FileInfo projectFile)
     {
         XDocument document;
         using (var fs = File.OpenRead(projectFile.FullName))
         {
-            document = await XDocument.LoadAsync(fs, LoadOptions.None, CancellationToken.None);
+            document = await XDocument.LoadAsync(fs, LoadOptions.None, CancellationToken.None).ConfigureAwait(false);
         }
 
         var nodesToRemove = new List<XElement>();
@@ -117,7 +124,9 @@ public class MigrateToCpmCommand : AsyncCommand<MigrateToCpmSettings>
             if (packageAttribute is null)
             {
                 packageAttribute = packageReference.Attribute("Update")!;
-                AnsiConsole.MarkupLine($"[yellow]{projectFile.Name}: Remove `Update` reference to {packageAttribute.Value}[/]");
+                AnsiConsole.MarkupLine(
+                    $"[yellow]{projectFile.Name}: Remove `Update` reference to {packageAttribute.Value}[/]");
+
                 nodesToRemove.Add(packageReference);
             }
 
@@ -131,7 +140,9 @@ public class MigrateToCpmCommand : AsyncCommand<MigrateToCpmSettings>
                 }
                 catch (FormatException ex)
                 {
-                    AnsiConsole.MarkupLineInterpolated($"[yellow]Could not parse version in `{package}`: {ex.Message}[/]");
+                    AnsiConsole.MarkupLineInterpolated(
+                        CultureInfo.InvariantCulture,
+                        $"[yellow]Could not parse version in `{package}`: {ex.Message}[/]");
                 }
             }
 
@@ -145,15 +156,15 @@ public class MigrateToCpmCommand : AsyncCommand<MigrateToCpmSettings>
         using (var fs = File.Create(projectFile.FullName))
         {
             using var writer = XmlWriter.Create(fs, _xmlWriterSettings);
-            await document.SaveAsync(writer, CancellationToken.None);
-            await writer.FlushAsync();
+            await document.SaveAsync(writer, CancellationToken.None).ConfigureAwait(false);
+            await writer.FlushAsync().ConfigureAwait(false);
         }
     }
 
     private static string GetMaxVersion(string left, string right)
     {
-        var leftVersion = Version.Parse(left.Split("-", 2)[0]);
-        var rightVersion = Version.Parse(right.Split("-", 2)[0]);
+        var leftVersion = NuGetVersion.Parse(left);
+        var rightVersion = NuGetVersion.Parse(right);
 
         return leftVersion > rightVersion
             ? left

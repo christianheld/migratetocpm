@@ -1,4 +1,5 @@
 ﻿using MigrateToCpm;
+
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -11,4 +12,4 @@ app.Configure(c =>
     });
 });
 
-await app.RunAsync(args);
+await app.RunAsync(args).ConfigureAwait(false);
