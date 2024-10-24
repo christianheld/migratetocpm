@@ -85,11 +85,15 @@ public class MigrateToCpmCommand : AsyncCommand<MigrateToCpmSettings>
                             new XAttribute("Version", kvp.Value))))));
 
         var fileName = Path.Combine(directoryInfo.FullName, "Directory.Packages.props");
-        using (var fs = File.Create(fileName))
+
+        if (File.Exists(fileName))
         {
-            using var writer = XmlWriter.Create(fs, _xmlWriterSettings);
-            await packagesProps.SaveAsync(writer, CancellationToken.None).ConfigureAwait(false);
+            File.Move(fileName, $"{fileName}.bak");
         }
+
+        using var fs = File.Create(fileName);
+        using var writer = XmlWriter.Create(fs, _xmlWriterSettings);
+        await packagesProps.SaveAsync(writer, CancellationToken.None).ConfigureAwait(false);
     }
 
     private static List<FileInfo> GetCsProjFiles(DirectoryInfo directoryInfo)

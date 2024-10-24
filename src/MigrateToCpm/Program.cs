@@ -6,7 +6,7 @@ using Spectre.Console.Cli;
 var app = new CommandApp<MigrateToCpmCommand>();
 app.Configure(c =>
 {
-    c.SetExceptionHandler(ex =>
+    c.SetExceptionHandler((ex, _) =>
     {
         AnsiConsole.WriteException(ex);
     });
