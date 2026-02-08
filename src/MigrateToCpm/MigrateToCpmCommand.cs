@@ -19,7 +19,7 @@ public class MigrateToCpmCommand : AsyncCommand<MigrateToCpmSettings>
         IndentChars = "  "
     };
 
-    public override async Task<int> ExecuteAsync(CommandContext context, MigrateToCpmSettings settings)
+    public override async Task<int> ExecuteAsync(CommandContext context, MigrateToCpmSettings settings, CancellationToken cancellationToken)
     {
         var directoryInfo = new DirectoryInfo(settings.ProjectDirectory);
 
